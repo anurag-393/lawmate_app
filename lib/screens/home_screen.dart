@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
+import 'package:lawmate_ai_app/screens/chat/chat_screen.dart';
 import 'package:lawmate_ai_app/screens/summary/summary_screen.dart';
 import 'package:lawmate_ai_app/screens/welcome_screen.dart';
 
@@ -124,7 +125,7 @@ class HomeScreen extends StatelessWidget {
               color: Color(0xFF6B4EFF),
               icon: Icons.mic,
               title: "Chat with LawMate",
-              destinationScreen: WelcomeScreen(),
+              destinationScreen: ChatScreen(),
             ),
           ),
         ),
