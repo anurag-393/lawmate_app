@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:lawmate_ai_app/core/constants/app_theme.dart';
+import 'package:lawmate_ai_app/screens/chat/voice_chat_overlay.dart';
 import 'package:path/path.dart' as path;
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
 import 'package:http_parser/http_parser.dart'; // Add this import
@@ -350,6 +351,58 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isAttachmentMenuOpen = false);
   }
 
+  Widget _buildVoiceChatButton() {
+    return IconButton(
+      icon: Icon(Icons.mic),
+      tooltip: 'Voice Chat',
+      onPressed: () {
+        // Only allow voice chat if a document is active
+        if (_activeDocument != null) {
+          _showVoiceChatOverlay();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Please upload a document first to use voice chat',
+              ),
+              backgroundColor: AppColors.errorColor,
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  void _showVoiceChatOverlay() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => VoiceChatOverlay(
+            activeDocument: _activeDocument,
+            activeDocumentName: _activeDocumentName,
+            activeDocumentMimeType: _activeDocumentMimeType,
+            apiUrl: apiUrl,
+            onAddMessage: (String message) {
+              // This callback adds messages to the main chat
+              setState(() {
+                _messages.add(
+                  ChatMessage(
+                    text: message,
+                    isUser:
+                        _messages.length % 2 ==
+                        0, // Alternating user/AI messages
+                    timestamp: DateTime.now(),
+                  ),
+                );
+              });
+              _scrollToBottom();
+            },
+          ),
+    );
+  }
+
   // Rest of the code remains unchanged
   @override
   Widget build(BuildContext context) {
@@ -415,6 +468,7 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               tooltip: 'Clear active document',
             ),
+          _buildVoiceChatButton(),
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
