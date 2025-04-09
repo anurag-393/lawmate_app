@@ -152,7 +152,8 @@ class HomeScreen extends StatelessWidget {
                   color: Color(0xFFB476FF),
                   icon: Icons.image,
                   title: "Summarize Document",
-                  destinationScreen: SummaryScreen(),
+                  destinationScreen:
+                      DocumentSummaryScreen(),
                 ),
               ),
             ],
