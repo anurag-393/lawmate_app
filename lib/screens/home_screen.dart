@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
 import 'package:lawmate_ai_app/screens/chat/chat_screen.dart';
+import 'package:lawmate_ai_app/screens/highlisht/document_highlight_screeen.dart';
 import 'package:lawmate_ai_app/screens/summary/summary_screen.dart';
-import 'package:lawmate_ai_app/screens/welcome_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -141,7 +141,8 @@ class HomeScreen extends StatelessWidget {
                   color: Color(0xFFFF6B8A),
                   icon: Icons.chat_bubble_outline,
                   title: "Analyze Document",
-                  destinationScreen: WelcomeScreen(),
+                  destinationScreen:
+                      DocumentAnalysisScreen(),
                 ),
               ),
               SizedBox(height: 16),

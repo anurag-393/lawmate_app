@@ -187,7 +187,8 @@ class _ChatScreenState extends State<ChatScreen> {
         // Parse the response
         var jsonResponse = json.decode(response.body);
         String responseText =
-            jsonResponse['result'] ?? "No response data";
+            jsonResponse['gemini_result'] ??
+            "No response data";
 
         setState(() {
           _messages.add(
