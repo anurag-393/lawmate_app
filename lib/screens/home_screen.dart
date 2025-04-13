@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
-import 'package:lawmate_ai_app/core/model/conversation.dart';
 import 'package:lawmate_ai_app/screens/chat/chat_screen.dart';
 import 'package:lawmate_ai_app/screens/highlisht/document_highlight_screeen.dart';
 import 'package:lawmate_ai_app/screens/saved_item_screen.dart';
