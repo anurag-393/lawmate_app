@@ -6,13 +6,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:lawmate_ai_app/core/constants/app_theme.dart';
+import 'package:lawmate_ai_app/core/model/conversation.dart';
+import 'package:lawmate_ai_app/core/services/storage_service.dart';
 import 'package:lawmate_ai_app/screens/chat/voice_chat_overlay.dart';
 import 'package:path/path.dart' as path;
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
 import 'package:http_parser/http_parser.dart'; // Add this import
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+  final String? conversationId;
+  const ChatScreen({super.key, this.conversationId});
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -28,6 +31,9 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isAttachmentMenuOpen = false;
   bool _isLoading = false;
 
+  final StorageService _storageService = StorageService();
+  String? _conversationId;
+
   // Store the currently active document for multiple queries
   File? _activeDocument;
   String? _activeDocumentName;
@@ -35,7 +41,119 @@ class _ChatScreenState extends State<ChatScreen> {
   _activeDocumentMimeType; // Add this to track the mime type
 
   // API endpoint
-  final String apiUrl = 'http://192.168.0.198:8000/query/';
+  final String apiUrl = 'http://192.168.0.197:8000/query/';
+
+  @override
+  void initState() {
+    super.initState();
+
+    // If a conversation ID was provided, load that conversation
+    if (widget.conversationId != null) {
+      _loadConversation(widget.conversationId!);
+    }
+  }
+
+  Future<void> _loadConversation(
+    String conversationId,
+  ) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load the conversation from storage
+      final conversation = _storageService.getConversation(
+        conversationId,
+      );
+
+      if (conversation != null) {
+        // Set the conversation ID
+        _conversationId = conversationId;
+
+        // Set the active document name
+        _activeDocumentName = conversation.documentName;
+
+        // Try to load the document if path is available
+        if (conversation.documentPath != null &&
+            conversation.documentPath!.isNotEmpty) {
+          final documentFile = File(
+            conversation.documentPath!,
+          );
+          if (await documentFile.exists()) {
+            // Successfully found the document file
+            _activeDocument = documentFile;
+            _activeDocumentMimeType =
+                conversation.documentMimeType;
+
+            print(
+              "Document loaded successfully from: ${documentFile.path}",
+            );
+
+            // Add a message indicating document is loaded and can be queried
+            setState(() {
+              _messages.add(
+                ChatMessage(
+                  text:
+                      "Document loaded successfully. You can continue asking questions.",
+                  isUser: false,
+                  timestamp: DateTime.now(),
+                ),
+              );
+            });
+          } else {
+            // Document file no longer exists
+            print(
+              "Document file not found at path: ${conversation.documentPath}",
+            );
+            setState(() {
+              _messages.add(
+                ChatMessage(
+                  text:
+                      "The original document file could not be found. Please upload it again to ask new questions.",
+                  isUser: false,
+                  timestamp: DateTime.now(),
+                ),
+              );
+            });
+          }
+        } else {
+          print(
+            "No document path available in the conversation",
+          );
+        }
+
+        // Convert messages from Hive model to chat messages
+        final chatMessages =
+            conversation.messages
+                .map(
+                  (msg) => ChatMessage(
+                    text: msg.content,
+                    isUser: msg.isUser,
+                    timestamp: msg.timestamp,
+                  ),
+                )
+                .toList();
+
+        setState(() {
+          _messages.addAll(chatMessages);
+        });
+      }
+    } catch (e) {
+      print('Error loading conversation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading conversation: $e'),
+          backgroundColor: AppColors.errorColor,
+        ),
+      );
+    }
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    _scrollToBottom();
+  }
 
   @override
   void dispose() {
@@ -60,23 +178,65 @@ class _ChatScreenState extends State<ChatScreen> {
     final messageText = _messageController.text.trim();
     if (messageText.isEmpty) return;
 
+    // Create the user message
+    final userMessage = ChatMessage(
+      text: messageText,
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
     // Add user message to chat
     setState(() {
-      _messages.add(
-        ChatMessage(
-          text: messageText,
-          isUser: true,
-          timestamp: DateTime.now(),
-        ),
-      );
+      _messages.add(userMessage);
       _messageController.clear();
       _isLoading = true;
     });
+
+    // Save the user message to Hive
+    if (_conversationId != null) {
+      await _storageService.addMessageToConversation(
+        _conversationId!,
+        Message(
+          isUser: true,
+          content: messageText,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+
     _scrollToBottom();
 
     try {
+      // Check if we're in a loaded conversation without an active document
+      if (_conversationId != null &&
+          _activeDocument == null) {
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              text:
+                  "This is a chat history view. To ask new questions, please upload the document again.",
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
+          _isLoading = false;
+        });
+
+        // Save this response to the conversation
+        if (_conversationId != null) {
+          await _storageService.addMessageToConversation(
+            _conversationId!,
+            Message(
+              isUser: false,
+              content:
+                  "This is a chat history view. To ask new questions, please upload the document again.",
+              timestamp: DateTime.now(),
+            ),
+          );
+        }
+      }
       // Check if we have an active document to query against
-      if (_activeDocument != null) {
+      else if (_activeDocument != null) {
         await _sendQueryToBackend(
           messageText,
           _activeDocument!,
@@ -200,6 +360,17 @@ class _ChatScreenState extends State<ChatScreen> {
           );
           _isLoading = false;
         });
+        // Save the AI response to Hive
+        if (_conversationId != null) {
+          await _storageService.addMessageToConversation(
+            _conversationId!,
+            Message(
+              isUser: false,
+              content: responseText,
+              timestamp: DateTime.now(),
+            ),
+          );
+        }
       } else {
         setState(() {
           _messages.add(
@@ -212,6 +383,18 @@ class _ChatScreenState extends State<ChatScreen> {
           );
           _isLoading = false;
         });
+        // Save the AI response to Hive
+        if (_conversationId != null) {
+          await _storageService.addMessageToConversation(
+            _conversationId!,
+            Message(
+              isUser: false,
+              content:
+                  "Error: Server returned status code ${response.statusCode}. ${response.body}",
+              timestamp: DateTime.now(),
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -224,6 +407,17 @@ class _ChatScreenState extends State<ChatScreen> {
         );
         _isLoading = false;
       });
+      // Save the AI response to Hive
+      if (_conversationId != null) {
+        await _storageService.addMessageToConversation(
+          _conversationId!,
+          Message(
+            isUser: false,
+            content: "Network error: $e",
+            timestamp: DateTime.now(),
+          ),
+        );
+      }
     }
 
     _scrollToBottom();
@@ -261,6 +455,16 @@ class _ChatScreenState extends State<ChatScreen> {
         _activeDocument = imageFile;
         _activeDocumentName = pickedImage.name;
         _activeDocumentMimeType = mimeType;
+
+        print(_activeDocument!.path);
+        // Create a new conversation for this document
+        _conversationId = await _storageService
+            .saveConversation(
+              _activeDocumentName!, // Use document name instead of mime type
+              [], // Start with empty messages
+              documentPath: _activeDocument!.path,
+              documentMimeType: _activeDocumentMimeType,
+            );
 
         // Ask for the first query
         setState(() {
@@ -327,6 +531,23 @@ class _ChatScreenState extends State<ChatScreen> {
         _activeDocument = documentFile;
         _activeDocumentName = file.name;
         _activeDocumentMimeType = mimeType;
+        // After setting the active document
+        final savedDocPath = await _storageService
+            .saveDocumentFile(
+              _activeDocument!,
+              _activeDocumentName!,
+            );
+        print("Document saved at location:");
+        print(_activeDocument!.path);
+
+        // Create a new conversation for this document
+        _conversationId = await _storageService
+            .saveConversation(
+              _activeDocumentName!, // Use document name instead of mime type
+              [], // Start with empty messages
+              documentPath: savedDocPath,
+              documentMimeType: _activeDocumentMimeType,
+            );
 
         // Ask for the first query
         setState(() {
@@ -385,23 +606,45 @@ class _ChatScreenState extends State<ChatScreen> {
             activeDocumentName: _activeDocumentName,
             activeDocumentMimeType: _activeDocumentMimeType,
             apiUrl: apiUrl,
-            onAddMessage: (String message) {
-              // This callback adds messages to the main chat
-              setState(() {
-                _messages.add(
-                  ChatMessage(
-                    text: message,
-                    isUser:
-                        _messages.length % 2 ==
-                        0, // Alternating user/AI messages
-                    timestamp: DateTime.now(),
-                  ),
-                );
-              });
-              _scrollToBottom();
+            onUserMessage: (String message) {
+              // Add and save user message
+              _addMessage(message, true);
+            },
+            onAIResponse: (String message) {
+              // Add and save AI response
+              _addMessage(message, false);
             },
           ),
     );
+  }
+
+  // Helper method to add and save messages
+  void _addMessage(String text, bool isUser) {
+    // Create the message
+    final chatMessage = ChatMessage(
+      text: text,
+      isUser: isUser,
+      timestamp: DateTime.now(),
+    );
+
+    // Add message to UI
+    setState(() {
+      _messages.add(chatMessage);
+    });
+
+    // Save the message to Hive if we have an active conversation
+    if (_conversationId != null) {
+      _storageService.addMessageToConversation(
+        _conversationId!,
+        Message(
+          isUser: isUser,
+          content: text,
+          timestamp: DateTime.now(),
+        ),
+      );
+    }
+
+    _scrollToBottom();
   }
 
   // Rest of the code remains unchanged

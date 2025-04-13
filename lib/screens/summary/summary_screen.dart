@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:lawmate_ai_app/core/services/storage_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:lawmate_ai_app/core/constants/app_theme.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
@@ -11,7 +12,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class DocumentSummaryScreen extends StatefulWidget {
-  const DocumentSummaryScreen({Key? key}) : super(key: key);
+  const DocumentSummaryScreen({super.key});
 
   @override
   _DocumentSummaryScreenState createState() =>
@@ -37,14 +38,29 @@ class _DocumentSummaryScreenState
   String? _summary;
   bool _isTyping = false;
 
+  final StorageService _storageService = StorageService();
+
   // API endpoint
   final String apiUrl =
-      'http://192.168.0.198:8000/summarize/';
+      'http://192.168.0.197:8000/summarize/';
 
   @override
   void initState() {
     super.initState();
     _initTts();
+  }
+
+  Future<void> saveDocumentSummary(
+    String documentName,
+    String summary,
+  ) async {
+    final summaryId = await _storageService
+        .saveDocumentSummary(documentName, summary);
+
+    // You might want to display a success message or navigate to a summary view
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Summary saved successfully')),
+    );
   }
 
   void _initTts() {
@@ -164,6 +180,14 @@ class _DocumentSummaryScreenState
           _isTyping = false;
           _isLoading = false;
         });
+
+        // Automatically save the summary after it's generated
+        if (_activeDocumentName != null) {
+          await saveDocumentSummary(
+            _activeDocumentName!,
+            summaryText,
+          );
+        }
 
         _scrollToBottom();
       } else {

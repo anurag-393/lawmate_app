@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:lawmate_ai_app/core/services/storage_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:lawmate_ai_app/core/constants/app_theme.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
@@ -49,7 +50,9 @@ class _DocumentAnalysisScreenState
 
   // API endpoint
   final String apiUrl =
-      'http://192.168.0.198:8000/highlight/';
+      'http://192.168.0.197:8000/highlight/';
+
+  final StorageService _storageService = StorageService();
 
   // @override
   // void initState() {
@@ -82,6 +85,33 @@ class _DocumentAnalysisScreenState
     _scrollController.dispose();
     _flutterTts.stop();
     super.dispose();
+  }
+
+  Future<void> saveHighlightedDocument(
+    String documentName,
+    File highlightedDocumentFile,
+  ) async {
+    // Get the app's document directory
+    final appDocDir =
+        await getApplicationDocumentsDirectory();
+    final fileName =
+        '${DateTime.now().millisecondsSinceEpoch}_$documentName';
+    final localPath = '${appDocDir.path}/$fileName';
+
+    // Copy the file to local storage
+    await highlightedDocumentFile.copy(localPath);
+
+    // Save the reference in Hive
+    final docId = await _storageService
+        .saveHighlightedDocument(documentName, localPath);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Highlighted document saved successfully',
+        ),
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -257,7 +287,11 @@ class _DocumentAnalysisScreenState
           _isTyping = false;
           _isLoading = false;
         });
-
+        
+        await saveHighlightedDocument(
+          filename,
+          comparisonFile,
+        );
         _scrollToBottom();
       } else {
         setState(() {

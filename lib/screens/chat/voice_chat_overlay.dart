@@ -13,16 +13,20 @@ class VoiceChatOverlay extends StatefulWidget {
   final File? activeDocument;
   final String? activeDocumentName;
   final String? activeDocumentMimeType;
-  final Function(String) onAddMessage;
+  // final Function(String) onAddMessage;
   final String apiUrl;
+  final Function(String) onUserMessage;
+  final Function(String) onAIResponse;
 
   const VoiceChatOverlay({
     Key? key,
     required this.activeDocument,
     required this.activeDocumentName,
     required this.activeDocumentMimeType,
-    required this.onAddMessage,
+    // required this.onAddMessage,
     required this.apiUrl,
+    required this.onUserMessage,
+    required this.onAIResponse,
   }) : super(key: key);
 
   @override
@@ -42,6 +46,7 @@ class _VoiceChatOverlayState
   String _response = "";
   String _statusText = "Tap the mic to ask a question";
 
+  // ignore: unused_field
   bool _disposed =
       false; // Flag to track if widget is disposed
   Timer? _listeningTimer;
@@ -354,7 +359,7 @@ class _VoiceChatOverlayState
     });
 
     // Add user message to main chat
-    widget.onAddMessage(query);
+    widget.onUserMessage(query);
 
     try {
       // Create multipart request
@@ -405,7 +410,7 @@ class _VoiceChatOverlayState
         });
 
         // Add response to main chat
-        widget.onAddMessage(responseText);
+        widget.onAIResponse(responseText);
 
         // Speak the response
         if (mounted) {
@@ -421,8 +426,8 @@ class _VoiceChatOverlayState
           _updateStatus("Error occurred");
         });
 
-        // Add error to main chat
-        widget.onAddMessage(errorMessage);
+        // Add response to main chat
+        widget.onAIResponse(errorMessage);
 
         // Speak error message
         if (mounted) {
@@ -442,8 +447,8 @@ class _VoiceChatOverlayState
         _updateStatus("Network error");
       });
 
-      // Add error to main chat
-      widget.onAddMessage(errorMessage);
+      // Add response to main chat
+      widget.onAIResponse(errorMessage);
 
       // Speak error message
       await _speak("Sorry, there was a network error.");

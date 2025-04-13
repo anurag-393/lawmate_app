@@ -24,7 +24,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
 
   // Change this to your computer's IP address on your local network
   final String baseUrl =
-      "http://192.168.0.198:8000"; // Replace X with your actual IP
+      "http://192.168.0.197:8000"; // Replace X with your actual IP
 
   final TextEditingController _textController =
       TextEditingController();

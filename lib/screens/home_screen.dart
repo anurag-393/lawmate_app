@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lawmate_ai_app/core/constants/app_colors.dart';
+import 'package:lawmate_ai_app/core/model/conversation.dart';
 import 'package:lawmate_ai_app/screens/chat/chat_screen.dart';
 import 'package:lawmate_ai_app/screens/highlisht/document_highlight_screeen.dart';
+import 'package:lawmate_ai_app/screens/saved_item_screen.dart';
 import 'package:lawmate_ai_app/screens/summary/summary_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -20,6 +22,25 @@ class HomeScreen extends StatelessWidget {
           onPressed: () {},
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: CircleAvatar(
+              backgroundColor: AppColors.surfaceColor,
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => SavedItemsScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.history),
+                color: AppColors.textColor,
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
@@ -58,6 +79,7 @@ class HomeScreen extends StatelessWidget {
               SizedBox(height: 24),
               _buildCustomGrid(context),
               SizedBox(height: 24),
+
               Row(
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
